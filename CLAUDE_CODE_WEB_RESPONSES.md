@@ -7,27 +7,35 @@
 
 ## 1. Reference Repositories
 
-**Answer:** Both repositories are public and accessible:
+**Answer:** The repositories are **private**, so I've provided all key files in the `reference-files/` directory.
 
-**linear_API:**
-- Repository: https://github.com/The-Luminous-Group/linear-api-integration
-- Key files to review:
-  - `pyproject.toml` - ruff/mypy configuration
-  - `create_linear_issue.py` - error handling patterns
-  - `issue_helper.py` - AI-friendly helper functions
-  - `README.md` - documentation style
-  - `tests/test_api_key_sources.py` - testing approach
+**UPDATE:** Since you got 404 errors, I've copied all the key files into this repository:
 
-**github_api:**
-- Repository: https://github.com/The-Luminous-Group/github-api-integration
-- Key files to review:
-  - `pyproject.toml` - project configuration
-  - `create_github_issue.py` - error handling with custom exceptions
-  - `github_issue_helper.py` - specification dictionary pattern
-  - `tests/` - comprehensive test suite (23 tests)
-  - `docs/troubleshooting.md` - documentation approach
+**Location:** `reference-files/` in this repository
 
-**Action:** Clone both repositories locally and review their structure before implementing.
+**Files provided:**
+
+**linear_API/** (authentication patterns):
+- `create_linear_issue.py` - Multi-source authentication (env, Keychain, 1Password)
+- `issue_helper.py` - AI-friendly spec dictionary pattern
+- `README.md` - Documentation style
+- `requirements.txt` - Dependencies
+
+**github_api/** (code quality patterns):
+- `pyproject.toml` - **USE THIS EXACTLY** (ruff/mypy configuration)
+- `requirements-dev.txt` - Dev dependencies pattern
+- `create_github_issue.py` - Custom exceptions, error handling
+- `github_issue_helper.py` - Spec validation and routing
+- `README.md` - Documentation structure
+
+**reference-files/README.md** - Comprehensive guide explaining:
+- Authentication pattern (4 methods)
+- Error handling pattern (exceptions + dicts)
+- Helper function pattern (spec dictionary)
+- Configuration (pyproject.toml)
+- Documentation style
+
+**Action:** Read `reference-files/README.md` first - it extracts all the key patterns you need to follow.
 
 ---
 
