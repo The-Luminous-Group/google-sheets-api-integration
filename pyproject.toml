@@ -1,54 +1,38 @@
 [project]
-name = "google-sheets-integration"
-version = "0.1.0"
+name = "google-sheets-api-integration"
+version = "1.0.0"
 description = "Python library for reading from and writing to Google Sheets programmatically"
-authors = [
-    {name = "The Luminous Group", email = "engineering@luminous.group"}
-]
-readme = "README.md"
-requires-python = ">=3.9"
-license = {text = "MIT"}
-dependencies = [
-    "google-auth>=2.23.0",
-    "google-auth-oauthlib>=1.1.0",
-    "google-api-python-client>=2.100.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-mock>=3.12.0",
-    "ruff>=0.1.0",
-    "mypy>=1.5.0",
-]
-
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires-python = ">=3.7"
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py37"
+
+# Exclude patterns
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    "__pycache__",
+    "*.egg-info",
+]
 
 [tool.ruff.lint]
+# Enable select rule sets
 select = [
     "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
     "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
+    "I",   # isort (import sorting)
     "UP",  # pyupgrade
-]
-ignore = [
-    "E501",  # line too long (handled by formatter)
-    "B008",  # do not perform function calls in argument defaults
-    "C901",  # too complex
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["B", "S"]
+# Ignore specific rules if needed
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["google_sheets_integration", "sheets_helper"]
 
 [tool.mypy]
 python_version = "3.9"
@@ -57,12 +41,15 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
-disallow_untyped_decorators = false
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 strict_equality = true
+
+# Start with looser settings, can tighten later
+disallow_any_generics = false
+disallow_subclassing_any = false
 
 [[tool.mypy.overrides]]
 module = "googleapiclient.*"
@@ -74,7 +61,10 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-addopts = "-v --cov=. --cov-report=html --cov-report=term-missing"
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
