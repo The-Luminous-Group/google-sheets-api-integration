@@ -21,14 +21,28 @@ Python library for reading from and writing to Google Sheets programmatically. D
 
 ## Installation
 
+**Recommended:** Use a virtual environment to avoid dependency conflicts:
+
 ```bash
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-For development:
+For development (includes testing and linting tools):
 ```bash
 pip install -r requirements-dev.txt
 ```
+
+**Note:** Always activate the virtual environment before using the library or running scripts.
 
 ## Quick Start
 
