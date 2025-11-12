@@ -48,14 +48,17 @@ pip install -r requirements-dev.txt
 
 ### 1. Set up authentication
 
-Export your service account credentials:
+Export your service account credentials (the code now also accepts raw JSON via `GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON`):
 
 ```bash
 # Option 1: File path
 export GOOGLE_SHEETS_SERVICE_ACCOUNT="/path/to/service-account.json"
 
 # Option 2: 1Password reference
-export GOOGLE_SHEETS_SERVICE_ACCOUNT="op://Personal/Google Sheets/credential"
+export GOOGLE_SHEETS_SERVICE_ACCOUNT="op://Personal/Google Sheets Service Account/credential"
+
+# Option 3: Paste the JSON directly (useful in sandboxed environments)
+export GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON="$(op read 'op://Personal/Google Sheets Service Account/credential')"
 ```
 
 ### 2. Read data from a sheet
@@ -436,6 +439,7 @@ pytest tests/ && ruff check . && mypy .
 - [Setup Guide](docs/setup.md) - Installation and setup instructions
 - [Service Account Setup](docs/service-account-setup.md) - Creating service account in Google Cloud
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
+- [Luminous Lead Generation System Spreadsheet Guide](https://github.com/The-Luminous-Group/lead-generation/blob/main/docs/google-sheets-integration.md) - Complete guide to using this library with the Luminous Lead Generation spreadsheet (spreadsheet structure, FRL scoring, workflow examples)
 
 ## License
 
