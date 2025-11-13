@@ -90,9 +90,15 @@ def _from_1password() -> Optional[str]:
     except (FileNotFoundError, subprocess.CalledProcessError):
         return None
 
+def _from_json_env() -> Optional[str]:
+    """Get credential JSON string directly from environment"""
+    value = os.getenv("GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON")
+    return value.strip() if value else None
+
 
 # Credential source mapping
 CREDENTIAL_SOURCES: Dict[str, Callable[[], Optional[str]]] = {
+    "json": _from_json_env,
     "env": _from_env,
     "keychain": _from_keychain,
     "1password": _from_1password,
@@ -120,7 +126,7 @@ def get_service_account_credentials() -> service_account.Credentials:
             item.strip().lower() for item in source_env.split(",") if item.strip()
         ]
     else:
-        preferred_sources = ["env", "keychain", "1password"]
+        preferred_sources = ["json", "env", "keychain", "1password"]
 
     tried: List[str] = []
     credential_data: Optional[str] = None
@@ -456,6 +462,139 @@ def append_rows(
             return {
                 "success": False,
                 "error": f"Spreadsheet or sheet not found: {spreadsheet_id}",
+            }
+        return {"success": False, "error": f"API error: {e}"}
+    except GoogleSheetsAuthError as e:
+        return {"success": False, "error": f"Authentication failed: {e}"}
+    except Exception as e:
+        return {"success": False, "error": f"Unexpected error: {e}"}
+
+
+def append_rows_to_table(
+    spreadsheet_id: str,
+    sheet_name: str,
+    rows: List[List[Any]],
+) -> Dict[str, Any]:
+    """
+    Append rows to a Google Sheets table with automatic formatting extension
+
+    This function appends rows using AppendCellsRequest with table awareness,
+    which automatically extends table formatting, data validation, and styling
+    to newly added rows.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet
+        sheet_name: The name of the sheet/tab containing the table
+        rows: List of rows, where each row is a list of values
+
+    Returns:
+        Dictionary with:
+            - success: bool
+            - table_id: str (the table that was appended to)
+            - rows_added: int
+            - error: str (if success=False)
+
+    Example:
+        result = append_rows_to_table(
+            "1ABC...XYZ",
+            "Interactions",
+            [
+                ["I001", "2025-11-10", "CT001", "John Doe", ...],
+                ["I002", "2025-11-13", "CT001", "John Doe", ...]
+            ]
+        )
+
+    Note:
+        - The sheet must be formatted as a table in Google Sheets
+        - Data validation, formulas, and formatting automatically extend
+        - If no table exists, an error is returned
+    """
+    try:
+        service = _get_sheets_service()
+
+        # Step 1: Get spreadsheet metadata to find the table
+        spreadsheet = service.spreadsheets().get(
+            spreadsheetId=spreadsheet_id
+        ).execute()
+
+        # Step 2: Find the sheet and its table
+        table_id = None
+        sheet_id = None
+
+        for sheet in spreadsheet.get('sheets', []):
+            if sheet['properties']['title'] == sheet_name:
+                sheet_id = sheet['properties']['sheetId']
+                tables = sheet.get('tables', [])
+                if tables:
+                    table_id = tables[0]['tableId']  # Use first table in sheet
+                break
+
+        if not sheet_id:
+            return {
+                "success": False,
+                "error": f"Sheet '{sheet_name}' not found in spreadsheet"
+            }
+
+        if not table_id:
+            return {
+                "success": False,
+                "error": f"No table found in sheet '{sheet_name}'. Format the sheet as a table first."
+            }
+
+        # Step 3: Build AppendCellsRequest
+        row_data = []
+        for row in rows:
+            values = []
+            for cell_value in row:
+                # Convert Python values to Google Sheets cell format
+                cell_data = {"userEnteredValue": {}}
+
+                if isinstance(cell_value, bool):
+                    cell_data["userEnteredValue"]["boolValue"] = cell_value
+                elif isinstance(cell_value, (int, float)):
+                    cell_data["userEnteredValue"]["numberValue"] = cell_value
+                elif isinstance(cell_value, str) and cell_value.startswith('='):
+                    # Formula
+                    cell_data["userEnteredValue"]["formulaValue"] = cell_value
+                else:
+                    # String or None
+                    cell_data["userEnteredValue"]["stringValue"] = str(cell_value) if cell_value is not None else ""
+
+                values.append(cell_data)
+
+            row_data.append({"values": values})
+
+        # Step 4: Execute batchUpdate with AppendCellsRequest
+        request_body = {
+            "requests": [
+                {
+                    "appendCells": {
+                        "sheetId": sheet_id,
+                        "tableId": table_id,
+                        "rows": row_data,
+                        "fields": "*"  # Update all fields
+                    }
+                }
+            ]
+        }
+
+        result = service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body=request_body
+        ).execute()
+
+        return {
+            "success": True,
+            "table_id": table_id,
+            "rows_added": len(rows),
+            "batch_update_result": result
+        }
+
+    except HttpError as e:
+        if e.resp.status == 404:
+            return {
+                "success": False,
+                "error": f"Spreadsheet or sheet not found: {spreadsheet_id}"
             }
         return {"success": False, "error": f"API error: {e}"}
     except GoogleSheetsAuthError as e:
