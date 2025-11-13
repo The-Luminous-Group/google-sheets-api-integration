@@ -474,6 +474,7 @@ def append_rows_to_table(
     spreadsheet_id: str,
     sheet_name: str,
     rows: List[List[Any]],
+    date_columns: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
     """
     Append rows to a Google Sheets table with automatic formatting extension
@@ -486,6 +487,9 @@ def append_rows_to_table(
         spreadsheet_id: The ID of the spreadsheet
         sheet_name: The name of the sheet/tab containing the table
         rows: List of rows, where each row is a list of values
+        date_columns: Optional list of 0-indexed column numbers to format as dates
+                     (e.g., [11, 12, 13] for columns L, M, N)
+                     Format applied: yyyy-mm-dd
 
     Returns:
         Dictionary with:
@@ -495,6 +499,7 @@ def append_rows_to_table(
             - error: str (if success=False)
 
     Example:
+        # Basic usage
         result = append_rows_to_table(
             "1ABC...XYZ",
             "Interactions",
@@ -502,6 +507,16 @@ def append_rows_to_table(
                 ["I001", "2025-11-10", "CT001", "John Doe", ...],
                 ["I002", "2025-11-13", "CT001", "John Doe", ...]
             ]
+        )
+
+        # With date formatting (columns L, M, N = indices 11, 12, 13)
+        result = append_rows_to_table(
+            "1ABC...XYZ",
+            "Interactions",
+            [
+                ["I001", "2025-11-10", "CT001", "John Doe", ..., "=B2+30", "=B2+60", "=B2+90"],
+            ],
+            date_columns=[11, 12, 13]  # Format follow-up date columns
         )
 
     Note:
@@ -564,19 +579,62 @@ def append_rows_to_table(
 
             row_data.append({"values": values})
 
-        # Step 4: Execute batchUpdate with AppendCellsRequest
-        request_body = {
-            "requests": [
-                {
-                    "appendCells": {
-                        "sheetId": sheet_id,
-                        "tableId": table_id,
-                        "rows": row_data,
-                        "fields": "*"  # Update all fields
-                    }
+        # Step 4: Get current table row count before appending
+        # We need this to calculate which rows to format after append
+        table_range = None
+        for sheet in spreadsheet.get('sheets', []):
+            if sheet['properties']['title'] == sheet_name:
+                tables = sheet.get('tables', [])
+                if tables:
+                    table_range = tables[0].get('range', {})
+                break
+
+        start_row = table_range.get('startRowIndex', 0) if table_range else 0
+        end_row = table_range.get('endRowIndex', 1) if table_range else 1
+        current_row_count = end_row - start_row
+
+        # Step 5: Execute batchUpdate with AppendCellsRequest
+        requests = [
+            {
+                "appendCells": {
+                    "sheetId": sheet_id,
+                    "tableId": table_id,
+                    "rows": row_data,
+                    "fields": "*"  # Update all fields
                 }
-            ]
-        }
+            }
+        ]
+
+        # Step 6: Add date formatting requests if date_columns specified
+        if date_columns:
+            # Calculate which rows were just added (after header row)
+            first_new_row = current_row_count  # 0-indexed
+            last_new_row = first_new_row + len(rows) - 1
+
+            for col_idx in date_columns:
+                # Format this column for the newly added rows
+                requests.append({
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": first_new_row,
+                            "endRowIndex": last_new_row + 1,  # endRowIndex is exclusive
+                            "startColumnIndex": col_idx,
+                            "endColumnIndex": col_idx + 1
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "numberFormat": {
+                                    "type": "DATE",
+                                    "pattern": "yyyy\"-\"mm\"-\"dd"
+                                }
+                            }
+                        },
+                        "fields": "userEnteredFormat.numberFormat"
+                    }
+                })
+
+        request_body = {"requests": requests}
 
         result = service.spreadsheets().batchUpdate(
             spreadsheetId=spreadsheet_id,
@@ -587,6 +645,7 @@ def append_rows_to_table(
             "success": True,
             "table_id": table_id,
             "rows_added": len(rows),
+            "date_columns_formatted": date_columns if date_columns else [],
             "batch_update_result": result
         }
 
